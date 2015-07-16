@@ -4,15 +4,14 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>share-oauth-repo</artifactId>
-    <version>2.3.1-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Share OAuth Repository</name>
     <url>http://sharextras.org</url>
 
     <properties>
-        <buildnumber>SNAPSHOT</buildnumber>
-        <alfresco.groupId>org.alfresco</alfresco.groupId>
-        <alfresco.version>4.2.d</alfresco.version>
+        <!--buildnumber>SNAPSHOT</buildnumber>
+        <alfresco.groupId>org.alfresco</alfresco.groupId-->
+        <alfresco.version>5.0.d</alfresco.version>
         <!-- This controls which properties will be picked in src/test/properties for embedded run -->
         <env>local</env>
     </properties>

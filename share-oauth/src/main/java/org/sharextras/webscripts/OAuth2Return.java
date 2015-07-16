@@ -1,18 +1,18 @@
 package org.sharextras.webscripts;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-
-import javax.servlet.http.HttpSession;
-
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpException;
-import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.message.BasicNameValuePair;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.sharextras.webscripts.connector.OAuth2CredentialVault;
 import org.sharextras.webscripts.connector.OAuth2Credentials;
 import org.springframework.extensions.config.RemoteConfigElement.ConnectorDescriptor;
 import org.springframework.extensions.config.RemoteConfigElement.EndpointDescriptor;
@@ -21,17 +21,11 @@ import org.springframework.extensions.surf.ServletUtil;
 import org.springframework.extensions.surf.exception.CredentialVaultProviderException;
 import org.springframework.extensions.surf.support.ThreadLocalRequestContext;
 import org.springframework.extensions.surf.util.URLDecoder;
-import org.springframework.extensions.webscripts.AbstractWebScript;
-import org.springframework.extensions.webscripts.Format;
-import org.springframework.extensions.webscripts.Status;
-import org.springframework.extensions.webscripts.WebScriptException;
-import org.springframework.extensions.webscripts.WebScriptRequest;
-import org.springframework.extensions.webscripts.WebScriptResponse;
-import org.springframework.extensions.webscripts.connector.ConnectorService;
-import org.springframework.extensions.webscripts.connector.CredentialVault;
-import org.springframework.extensions.webscripts.connector.Credentials;
-import org.springframework.extensions.webscripts.connector.ResponseStatus;
-import org.springframework.extensions.webscripts.connector.User;
+import org.springframework.extensions.webscripts.*;
+import org.springframework.extensions.webscripts.connector.*;
+
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
 
 /**
  * Landing page web script for returning from a 3rd party OAuth 2.0 authorization page.
@@ -122,10 +116,10 @@ public class OAuth2Return extends AbstractWebScript
         User user = context.getUser();
         String userId = user.getId();
         HttpSession httpSession = ServletUtil.getSession();
-        CredentialVault credentialVault;
+        OAuth2CredentialVault credentialVault;
         try
         {
-            credentialVault = connectorService.getCredentialVault(httpSession, userId, VAULT_PROVIDER_ID);
+            credentialVault = (OAuth2CredentialVault) connectorService.getCredentialVault(httpSession, userId, VAULT_PROVIDER_ID);
         }
         catch (CredentialVaultProviderException e)
         {
@@ -189,7 +183,6 @@ public class OAuth2Return extends AbstractWebScript
      * @param verifier      Temporary code returned from the OAuth provider, to be exchanged for an access token
      * @param req           The web script request object relating to this request
      * @return
-     * @throws HttpException
      * @throws IOException
      */
     private JSONObject requestAccessToken(
@@ -197,7 +190,7 @@ public class OAuth2Return extends AbstractWebScript
             String clientId,
             String clientSecret,
             String verifier,
-            WebScriptRequest req) throws HttpException, IOException
+            WebScriptRequest req) throws IOException
     {
         if (tokenUrl == null)
         {
@@ -212,9 +205,10 @@ public class OAuth2Return extends AbstractWebScript
             throw new IllegalArgumentException("Parameter 'client-secret' must be provided on connector");
         }
         
-        HttpClient client = new HttpClient();
-        PostMethod method = new PostMethod(tokenUrl);
-        
+        HttpClient client = HttpClientBuilder.create().build();
+        // PostMethod method = new PostMethod(tokenUrl);
+        java.util.List<NameValuePair> formData = new java.util.ArrayList<NameValuePair>();
+
         if (logger.isDebugEnabled())
         {
             logger.debug("Sending OAuth return code " + verifier + " to " + tokenUrl);
@@ -223,31 +217,43 @@ public class OAuth2Return extends AbstractWebScript
         String baseUrl = req.getURL();
         if (baseUrl.indexOf('?') != -1)
             baseUrl = baseUrl.substring(0, baseUrl.indexOf('?'));
-        
-        method.addParameter("code", verifier);
-        method.addParameter("grant_type", "authorization_code");
-        method.addParameter("redirect_uri", req.getServerPath() + baseUrl);
+
+        formData.add(new BasicNameValuePair("code", verifier));
+        formData.add(new BasicNameValuePair("grant_type", "authorization_code"));
+        formData.add(new BasicNameValuePair("redirect_uri", req.getServerPath() + baseUrl));
+        // method.addParameter("code", verifier);
+        // method.addParameter("grant_type", "authorization_code");
+        // method.addParameter("redirect_uri", req.getServerPath() + baseUrl);
         
         // Add client ID and secret if specified in the config
         if (clientId != null)
         {
-            method.addParameter("client_id", clientId);
+            formData.add(new BasicNameValuePair("client_id", clientId));
+            // method.addParameter("client_id", clientId);
         }
         if (clientSecret != null)
         {
-            method.addParameter("client_secret", clientSecret);
+            // method.addParameter("client_secret", clientSecret);
+            formData.add(new BasicNameValuePair("client_secret", clientSecret));
         }
-        
+
+        HttpPost method = new HttpPost(tokenUrl);
+
         // Request JSON response
-        method.addRequestHeader("Accept", Format.JSON.mimetype());
-        
-        int statusCode = client.executeMethod(method);
+        method.addHeader("Accept", Format.JSON.mimetype());
+
+        HttpResponse response = client.execute(method);
+        // byte[] responseBody = response.getEntity().getContent(); // method.getResponseBody();
+        int statusCode = response.getStatusLine().getStatusCode();
+        String tokenResp = IOUtils.toString(response.getEntity().getContent(), "UTF-8");
+
+        // int statusCode = client.execute(method);
         
         // errors may be {"error":"invalid_grant","error_description":"expired authorization code"}
         // or {"error":"redirect_uri_mismatch","error_description":"redirect_uri must match configuration"}
 
-        byte[] responseBody = method.getResponseBody();
-        String tokenResp = new String(responseBody, Charset.forName("UTF-8"));
+        // byte[] responseBody = method.getResponseBody();
+        // String tokenResp = new String(responseBody, Charset.forName("UTF-8"));
         
         // do something with the input stream, which contains the new parameters in the body
         if (logger.isDebugEnabled())

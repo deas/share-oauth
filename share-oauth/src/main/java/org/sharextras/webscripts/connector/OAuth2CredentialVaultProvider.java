@@ -26,7 +26,7 @@ public class OAuth2CredentialVaultProvider implements CredentialVaultProvider
     {
         logger.debug("Creating new credential vault with ID " + id);
         
-        OAuth2CredentialVault vault = new OAuth2CredentialVault(id);
+        OAuth2CredentialVault vault = new OAuth2CredentialVault(id, connectorService.getRemoteConfig());
         if (connectorService == null)
         {
             throw new IllegalStateException("Connection service is required by the credential vault.");

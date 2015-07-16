@@ -11,6 +11,7 @@ import org.apache.commons.logging.LogFactory;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.springframework.extensions.config.RemoteConfigElement;
 import org.springframework.extensions.surf.RequestContext;
 import org.springframework.extensions.surf.ServletUtil;
 import org.springframework.extensions.surf.exception.ConnectorServiceException;
@@ -47,9 +48,9 @@ public class OAuth2CredentialVault extends SimpleCredentialVault
     
     private ConnectorService connectorService;
 
-    public OAuth2CredentialVault(String id)
+    public OAuth2CredentialVault(String id, RemoteConfigElement remoteConfigElement)
     {
-        super(id);
+        super(id, remoteConfigElement);
     }
 
     @Override
@@ -73,12 +74,15 @@ public class OAuth2CredentialVault extends SimpleCredentialVault
         return credentials;
     }
 
+
+    /*
     @Override
     public boolean load()
     {
         // We're not able to load all the persisted endpoint credentials, nor should we!
         return true;
     }
+    */
 
     protected boolean load(String endpoint)
     {
@@ -158,8 +162,7 @@ public class OAuth2CredentialVault extends SimpleCredentialVault
             return false;
         }
     }
-    
-    @Override
+
     public boolean save()
     {
         RequestContext context = ThreadLocalRequestContext.getRequestContext();
@@ -187,8 +190,7 @@ public class OAuth2CredentialVault extends SimpleCredentialVault
         }
         catch (ConnectorServiceException e)
         {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
             return false;
         }
     }
@@ -257,8 +259,7 @@ public class OAuth2CredentialVault extends SimpleCredentialVault
         }
         catch (UnsupportedEncodingException e)
         {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            logger.error(e.getMessage(), e);
             return false;
         }
     }

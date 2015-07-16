@@ -93,7 +93,7 @@ public class OAuth2Authenticator extends AbstractAuthenticator implements Applic
         {
             alfrescoConnector = connectorService.getConnector(ENDPOINT_ALFRESCO);
             alfrescoConnector.setCredentials(credentials); // Just one set of credentials for the user, so we can steal these to use for the Alfresco connector
-            OAuth2CredentialVault vault = new OAuth2CredentialVault("standaloneVault");
+            OAuth2CredentialVault vault = new OAuth2CredentialVault("standaloneVault", connectorService.getRemoteConfig());
             vault.setAlfrescoConnector(alfrescoConnector); // Set the Alfresco connector to use directly - will then bypass the connector service
             oauthCredentials = vault.retrieve(connectorSession.getEndpointId());
         }
